@@ -1,0 +1,4 @@
+﻿# personal files
+*.pdf
+.claude/settings.local.json
+

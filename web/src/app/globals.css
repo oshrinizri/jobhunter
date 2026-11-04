@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --text: #15181d;
+  --muted: #5f6672;
+  --border: #e3e6ea;
+  --accent: #2554d9;
+  --accent-soft: #e8eefc;
+  --good: #137a4b;
+  --good-soft: #e3f5ec;
+  --mid: #9a6400;
+  --mid-soft: #fdf3dc;
+  --bad: #b3261e;
+  --bad-soft: #fbe9e7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a20;
+    --surface-2: #1f232b;
+    --text: #e8eaee;
+    --muted: #9aa1ad;
+    --border: #2a2f38;
+    --accent: #7c9cff;
+    --accent-soft: #1e2a4a;
+    --good: #5fd39a;
+    --good-soft: #15302a;
+    --mid: #f0c060;
+    --mid-soft: #33290f;
+    --bad: #ff8a80;
+    --bad-soft: #3a1b1a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-mid: var(--mid);
+  --color-mid-soft: var(--mid-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: var(--font-heebo), system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-heebo), system-ui, sans-serif;
+  /* room for the iPhone home indicator under the bottom nav */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 0;
+  }
+}
+
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
