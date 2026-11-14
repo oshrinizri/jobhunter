@@ -43,9 +43,13 @@ async function route(origin: string, destination: string, mode: "DRIVE" | "TRANS
 }
 
 export async function computeCommute(origin: string, destination: string): Promise<Commute> {
+  const warn = (mode: string) => (e: unknown) => {
+    console.warn(`commute ${mode} failed (${destination}):`, e instanceof Error ? e.message.slice(0, 200) : e);
+    return null;
+  };
   const [driveMin, transitMin] = await Promise.all([
-    route(origin, destination, "DRIVE").catch(() => null),
-    route(origin, destination, "TRANSIT").catch(() => null),
+    route(origin, destination, "DRIVE").catch(warn("drive")),
+    route(origin, destination, "TRANSIT").catch(warn("transit")),
   ]);
   return { driveMin, transitMin };
 }
