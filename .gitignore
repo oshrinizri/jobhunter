@@ -1,4 +1,7 @@
 ﻿# personal files
 *.pdf
+*CV*.html
+*.env
+.env.local
 .claude/settings.local.json
 
