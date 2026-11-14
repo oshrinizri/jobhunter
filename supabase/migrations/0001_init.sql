@@ -1,7 +1,12 @@
 -- JobHunter — initial schema (phase 1)
 -- Run in Supabase SQL editor, or via `supabase db push`.
 
-create extension if not exists pg_trgm;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
+
+-- Leftovers from a partial earlier run (safe if absent).
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
 
 -- ---------------------------------------------------------------------------
 -- Preferences & profile
@@ -20,7 +25,7 @@ create table public.preferences (
   negative_keywords text[] not null default array['sales','account executive','student','סטודנט'],
   preference_notes  text not null default '',
   digest_hour       int  not null default 8,
-  ingest_token      text not null default encode(gen_random_bytes(24), 'hex'), -- for iOS Shortcut
+  ingest_token      text not null default encode(extensions.gen_random_bytes(24), 'hex'), -- for iOS Shortcut
   updated_at        timestamptz not null default now()
 );
 

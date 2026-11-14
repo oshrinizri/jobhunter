@@ -13,16 +13,18 @@
 
 ## שלב 1: Supabase (מסד הנתונים וההתחברות) · חינם
 
-1. נרשמים בכתובת https://supabase.com עם חשבון ה-Google שלך.
+1. נרשמים בכתובת https://supabase.com עם **GitHub** (ממילא נצטרך אותו בשלב 6), או עם מייל וסיסמה. אין שם כניסה עם Google.
 2. לוחצים **New project**:
    - שם: `jobhunter`
    - סיסמת מסד נתונים: לוחצים Generate ושומרים אותה במקום בטוח
    - אזור: **Frankfurt (eu-central-1)**, הקרוב לישראל
-3. כשהפרויקט מוכן, נכנסים ל-**SQL Editor** ולוחצים **New query**. מעתיקים לשם את כל התוכן של הקובץ `supabase/migrations/0001_init.sql` ולוחצים **Run**. צריכה להופיע ההודעה "Success".
-4. נכנסים ל-**Project Settings ← API** ושומרים בצד שלושה ערכים:
-   - `Project URL`
-   - `anon public`
-   - `service_role`. זה המפתח הסודי ביותר: הוא נותן גישה מלאה לנתונים.
+3. כשהפרויקט מוכן, נכנסים ל-**SQL Editor** ולוחצים **New query**. מדביקים את התוכן של `supabase/migrations/0001_init.sql` ואחריו את `0002_grants.sql`, ולוחצים **Run**.
+   - אם קופץ חלון "Potential issues detected", לוחצים **Run and enable RLS**, הכפתור הירוק. אם לוחצים Cancel, שום דבר לא רץ.
+   - 0002 נחוץ: מאוקטובר 2026, בפרויקטים חדשים טבלאות מוסתרות מהאפליקציה עד שנותנים להן הרשאה.
+4. שומרים בצד שלושה ערכים:
+   - כתובת הפרויקט: בכפתור **Connect**, או ב-**Project Settings ← Data API**
+   - **Project Settings ← API Keys**: המפתח `publishable`, שבלשונית Legacy נקרא `anon`
+   - באותו מסך: המפתח `secret`, שבלשונית Legacy נקרא `service_role`. זה המפתח הסודי ביותר: הוא נותן גישה מלאה לנתונים.
 
 ## שלב 2: התחברות עם Google · חינם
 
