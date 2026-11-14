@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
+import { translateToHebrew } from "@/lib/translate";
 import { APPLICATION_STATUSES, type ApplicationStatus } from "@/lib/types";
 
 async function userOrThrow() {
@@ -11,6 +12,19 @@ async function userOrThrow() {
   } = await db.auth.getUser();
   if (!user) throw new Error("not signed in");
   return { db, user };
+}
+
+/** Translate a job's description to Hebrew (on demand, not stored). */
+export async function translateJob(jobId: string): Promise<{ text?: string; error?: string }> {
+  const { db } = await userOrThrow();
+  if (!process.env.ANTHROPIC_API_KEY) return { error: "חסר מפתח AI" };
+  const { data: job } = await db.from("jobs").select("title,description").eq("id", jobId).maybeSingle();
+  if (!job?.description) return { error: "אין תיאור לתרגם" };
+  try {
+    return { text: await translateToHebrew(`${job.title}\n\n${job.description}`) };
+  } catch (e) {
+    return { error: (e as Error).message.slice(0, 150) };
+  }
 }
 
 /** 👍 / 👎 / hide / open, with optional reason chips (SPEC §11). */

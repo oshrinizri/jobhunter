@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusPicker } from "@/components/status-picker";
 import { QuickFeedback } from "@/components/quick-feedback";
+import { JobDescription } from "@/components/job-description";
 import { Card, FILTER_LABELS, ScoreBadge, TAG_LABELS, Tag, commuteText, postedText } from "@/components/ui";
 import { supabaseServer } from "@/lib/supabase/server";
 import { normalizeCompanyName } from "@/lib/text";
@@ -143,10 +144,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       {/* Description */}
       <Card>
-        <h2 className="mb-2 font-semibold">תיאור המשרה</h2>
-        <div className={`whitespace-pre-line text-sm leading-relaxed ${job.language === "en" ? "ltr text-start" : ""}`}>
-          {job.description || "אין תיאור."}
-        </div>
+        <JobDescription jobId={id} text={job.description ?? ""} isEnglish={job.language === "en"} />
       </Card>
 
       {sources && sources.length > 0 && (
