@@ -53,7 +53,15 @@ export function timeAgo(iso: string | null) {
   if (days <= 0) return "היום";
   if (days === 1) return "אתמול";
   if (days < 30) return `לפני ${days} ימים`;
-  return `לפני ${Math.floor(days / 30)} חודשים`;
+  const months = Math.floor(days / 30);
+  if (months === 1) return "לפני חודש";
+  if (months === 2) return "לפני חודשיים";
+  return `לפני ${months} חודשים`;
+}
+
+/** "פורסם לפני 3 ימים", or "נמצא …" when the board gave no posting date. */
+export function postedText(postedAt: string | null, firstSeenAt: string) {
+  return postedAt ? `פורסם ${timeAgo(postedAt)}` : `נמצא ${timeAgo(firstSeenAt)}`;
 }
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {

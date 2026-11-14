@@ -6,18 +6,37 @@ import { ai, extractJson, MODEL_WRITING, textOf } from "../ai";
 import type { CompanyCard } from "../types";
 import { normalizeCompanyName } from "../text";
 
+// The card comes from free-text JSON after web search, so be forgiving:
+// "yes"/"no"/"unknown" → boolean/null, "1,500+" → 1500, unknown strings → null.
+const looseBool = z.preprocess((v) => {
+  if (typeof v === "boolean" || v == null) return v ?? null;
+  const s = String(v).trim().toLowerCase();
+  if (/^(true|yes|כן)\b/.test(s)) return true;
+  if (/^(false|no|none|לא)\b/.test(s)) return false;
+  return null;
+}, z.boolean().nullable());
+const looseInt = z.preprocess((v) => {
+  if (typeof v === "number" || v == null) return v == null ? null : Math.round(v);
+  const m = String(v).replace(/,/g, "").match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}, z.number().int().nullable());
+const looseStr = z.preprocess((v) => (v == null ? null : String(v)), z.string().nullable());
+
 const CardSchema = z.object({
-  tier: z.enum(["A", "B", "C"]),
-  is_public: z.boolean().nullable(),
-  employees: z.number().int().nullable(),
-  founded_year: z.number().int().nullable(),
-  funding_stage: z.string().nullable(),
-  recent_layoffs: z.boolean().nullable(),
-  sector: z.string().nullable(),
-  hq_country: z.string().nullable(),
-  work_language: z.enum(["he", "en", "mixed"]).nullable(),
-  is_staffing: z.boolean(),
-  summary: z.string().nullable(),
+  tier: z.preprocess((v) => String(v ?? "").trim().toUpperCase().charAt(0), z.enum(["A", "B", "C"])),
+  is_public: looseBool,
+  employees: looseInt,
+  founded_year: looseInt,
+  funding_stage: looseStr,
+  recent_layoffs: looseBool,
+  sector: looseStr,
+  hq_country: looseStr,
+  work_language: z.preprocess(
+    (v) => (["he", "en", "mixed"].includes(String(v)) ? v : null),
+    z.enum(["he", "en", "mixed"]).nullable(),
+  ),
+  is_staffing: looseBool.transform((b) => b ?? false),
+  summary: looseStr,
 });
 
 const SYSTEM = `You research Israeli employers for a job seeker and classify their stability.

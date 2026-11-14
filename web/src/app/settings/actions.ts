@@ -35,6 +35,7 @@ export async function saveSettings(_prev: SettingsState, form: FormData): Promis
       preferred_domains: list(form.get("preferred_domains")),
       negative_keywords: list(form.get("negative_keywords")),
       preference_notes: String(form.get("preference_notes") ?? ""),
+      max_job_age_days: Math.max(1, Math.min(365, Number(form.get("max_job_age_days") ?? 30) || 30)),
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", user.id);

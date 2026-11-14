@@ -10,7 +10,7 @@ const TRACK_PATTERNS: Record<string, RegExp> = {
   "Product Analyst": /product analyst|growth analyst|אנליסט מוצר/i,
 };
 
-const TOO_SENIOR = /\b(director|vp|head of|principal|staff|chief|group manager)\b|סמנכ"ל|ראש תחום|דירקטור/i;
+const TOO_SENIOR = /\b(director|vp|head of|principal|staff|chief|group manager|team lead(er)?|tech lead|engineering manager|manager)\b|סמנכ"ל|ראש תחום|ראש צוות|מנהל(ת)? צוות|דירקטור/i;
 const TOO_JUNIOR = /\b(intern|internship|student|junior student)\b|סטודנט|משרת סטודנט|מתמחה/i;
 
 export function hardFilter(job: RawJob, prefs: Preferences, blacklist: string[]): string | null {

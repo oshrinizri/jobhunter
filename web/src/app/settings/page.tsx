@@ -1,6 +1,6 @@
 import { SettingsForm } from "./form";
 import { supabaseServer } from "@/lib/supabase/server";
-import { DEFAULT_WEIGHTS } from "@/lib/types";
+import { DEFAULT_MAX_JOB_AGE_DAYS, DEFAULT_WEIGHTS } from "@/lib/types";
 
 export default async function SettingsPage() {
   const db = await supabaseServer();
@@ -14,7 +14,13 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">הגדרות</h1>
-      <SettingsForm prefs={{ ...prefs, weights: { ...DEFAULT_WEIGHTS, ...prefs.weights } }} />
+      <SettingsForm
+        prefs={{
+          ...prefs,
+          weights: { ...DEFAULT_WEIGHTS, ...prefs.weights },
+          max_job_age_days: prefs.max_job_age_days ?? DEFAULT_MAX_JOB_AGE_DAYS,
+        }}
+      />
       <p className="text-center text-xs text-muted">
         מחובר כ-<span className="ltr">{user?.email}</span>
       </p>

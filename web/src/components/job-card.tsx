@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/types";
-import { FILTER_LABELS, ScoreBadge, TAG_LABELS, Tag, commuteText, timeAgo } from "./ui";
+import { FILTER_LABELS, ScoreBadge, TAG_LABELS, Tag, commuteText, postedText } from "./ui";
 import { QuickFeedback } from "./quick-feedback";
 
 export interface FeedJob {
@@ -34,7 +34,7 @@ export function JobCard({ job }: { job: FeedJob }) {
             {job.location ? ` · ${job.location}` : ""}
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            {[commute, timeAgo(job.posted_at ?? job.first_seen_at)].filter(Boolean).join(" · ")}
+            {[postedText(job.posted_at, job.first_seen_at), commute].filter(Boolean).join(" · ")}
           </p>
         </div>
       </Link>

@@ -6,6 +6,7 @@ config({ path: ".env.local" });
 import { fetchCompanyJobs } from "../src/lib/connectors/ats";
 import { loadUserContext, processJob, upsertJob } from "../src/lib/pipeline";
 import { supabaseAdmin } from "../src/lib/supabase/admin";
+import { ageCutoffIso } from "../src/lib/types";
 
 // Cost guard: at most this many AI scorings per run (SPEC §17 risk #7).
 const MAX_SCORE_PER_RUN = Number(process.env.MAX_SCORE_PER_RUN ?? 150);
@@ -25,7 +26,7 @@ async function main() {
       .eq("status", "active")
       .in("ats", ["greenhouse", "lever", "comeet"]);
 
-    let fetched = 0, added = 0, scored = 0, filtered = 0, skipped = 0;
+    let fetched = 0, added = 0, scored = 0, filtered = 0, skipped = 0, old = 0;
     const toProcess: { id: string; raw: Awaited<ReturnType<typeof fetchCompanyJobs>>[number] }[] = [];
 
     for (const c of companies ?? []) {
@@ -49,7 +50,9 @@ async function main() {
       }
     }
 
-    // Also retry jobs stored earlier but never scored (e.g. API key was missing, or budget hit).
+    // Also retry jobs stored earlier but never scored (API key was missing, budget hit,
+    // or the age limit was raised since) — only those inside the current age limit.
+    const cutoff = ageCutoffIso(ctx.prefs.max_job_age_days);
     const { data: pending } = await db
       .from("jobs_feed")
       .select("id,title,company,location,remote,description,apply_email,apply_url,posted_at,company_hidden")
@@ -57,6 +60,7 @@ async function main() {
       .is("total", null)
       .is("filtered_out", null)
       .eq("is_open", true)
+      .or(`posted_at.is.null,posted_at.gte.${cutoff}`)
       .limit(MAX_SCORE_PER_RUN);
     for (const p of pending ?? []) {
       if (toProcess.some((t) => t.id === p.id)) continue;
@@ -76,6 +80,7 @@ async function main() {
         const r = await processJob(db, ctx, id, raw);
         if (r === "scored") scored++;
         else if (r === "filtered") filtered++;
+        else if (r === "too_old") old++;
         else skipped++;
       } catch (e) {
         skipped++;
@@ -83,7 +88,7 @@ async function main() {
       }
     }
 
-    console.log(`user ${userId.slice(0, 8)}: ${companies?.length ?? 0} companies, ${fetched} Israeli jobs fetched, ${added} new, ${filtered} filtered, ${scored} scored, ${skipped} pending`);
+    console.log(`user ${userId.slice(0, 8)}: ${companies?.length ?? 0} companies, ${fetched} Israeli jobs fetched, ${added} new, ${filtered} filtered, ${old} too old (>${ctx.prefs.max_job_age_days}d), ${scored} scored, ${skipped} pending`);
   }
 }
 

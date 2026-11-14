@@ -19,6 +19,8 @@ const TRACKS = ["Data Analyst", "BI Developer", "Data Engineer", "Product Analys
 
 const input = "w-full rounded-xl border border-border bg-surface px-3 py-2";
 
+const AGE_OPTIONS = [7, 14, 21, 30, 45, 60, 90];
+
 export function SettingsForm({ prefs }: { prefs: Preferences }) {
   const [state, action, pending] = useActionState<SettingsState, FormData>(saveSettings, null);
   const [weights, setWeights] = useState<Weights>(prefs.weights);
@@ -42,6 +44,23 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
             <input name="target_salary" type="number" step={500} defaultValue={prefs.target_salary} className={input} />
           </label>
         </div>
+      </Card>
+
+      <Card className="space-y-2">
+        <h2 className="font-semibold">טריות משרות</h2>
+        <label className="block text-sm">
+          <span className="text-muted">להציג משרות שפורסמו עד</span>
+          <select name="max_job_age_days" defaultValue={String(prefs.max_job_age_days)} className={input}>
+            {AGE_OPTIONS.map((d) => (
+              <option key={d} value={d}>
+                {d} ימים אחרונים{d === 30 ? " (מומלץ)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="text-xs text-muted">
+          משרות ישנות יותר מוסתרות ולא נשלחות לדירוג AI, וזה חוסך עלות. משרות שהוספת ידנית תמיד מוצגות. אחרי הגדלת הטווח, המשרות שנכנסו לטווח ידורגו בסריקה הבאה.
+        </p>
       </Card>
 
       <Card className="space-y-2">

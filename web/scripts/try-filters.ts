@@ -16,6 +16,7 @@ const prefs: Preferences = {
   preferred_domains: ["fintech", "health"],
   negative_keywords: ["sales", "account executive", "student", "סטודנט"],
   preference_notes: "",
+  max_job_age_days: 30,
 };
 
 async function main() {

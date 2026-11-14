@@ -58,6 +58,21 @@ export interface Preferences {
   preferred_domains: string[];
   negative_keywords: string[];
   preference_notes: string;
+  /** Jobs posted longer ago than this are hidden and not scored (manual adds excepted). */
+  max_job_age_days: number;
+}
+
+export const DEFAULT_MAX_JOB_AGE_DAYS = 30;
+
+/** True when a posting date is older than the user's age limit. Unknown dates pass. */
+export function isTooOld(postedAt: string | null | undefined, maxDays: number | null | undefined): boolean {
+  if (!postedAt || !maxDays) return false;
+  return Date.now() - new Date(postedAt).getTime() > maxDays * 86400_000;
+}
+
+/** ISO cutoff for "posted within the last N days". */
+export function ageCutoffIso(maxDays: number): string {
+  return new Date(Date.now() - maxDays * 86400_000).toISOString();
 }
 
 export interface CompanyCard {

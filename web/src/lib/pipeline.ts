@@ -8,7 +8,15 @@ import { bestCommute, commuteScore, computeCommute, destinationFor } from "./sco
 import { hardFilter } from "./scoring/filters";
 import { assessJob, buildBreakdown, combine, tagsFor } from "./scoring/score";
 import { jobFingerprint, normalizeCompanyName, detectLanguage } from "./text";
-import { DEFAULT_WEIGHTS, type CompanyCard, type Commute, type Preferences, type RawJob } from "./types";
+import {
+  DEFAULT_MAX_JOB_AGE_DAYS,
+  DEFAULT_WEIGHTS,
+  isTooOld,
+  type CompanyCard,
+  type Commute,
+  type Preferences,
+  type RawJob,
+} from "./types";
 import { MODEL_SCORING } from "./ai";
 
 /** Always excluded, regardless of the companies table (SPEC §12–13). */
@@ -30,7 +38,11 @@ export async function loadUserContext(db: SupabaseClient, userId: string): Promi
   ]);
   if (prefErr || !prefRow) throw new Error(`no preferences for user ${userId}: ${prefErr?.message}`);
 
-  const prefs: Preferences = { ...prefRow, weights: { ...DEFAULT_WEIGHTS, ...prefRow.weights } };
+  const prefs: Preferences = {
+    ...prefRow,
+    weights: { ...DEFAULT_WEIGHTS, ...prefRow.weights },
+    max_job_age_days: prefRow.max_job_age_days ?? DEFAULT_MAX_JOB_AGE_DAYS,
+  };
   const profile = (items?.length ? items : PROFILE_SEED) as ProfileItem[];
   const blacklist = [
     ...FIXED_BLACKLIST,
@@ -94,8 +106,21 @@ export async function upsertJob(db: SupabaseClient, userId: string, raw: RawJob)
   return { id, isNew };
 }
 
-async function getCompanyCard(db: SupabaseClient, company: string): Promise<CompanyCard | null> {
+// One research attempt per company per process: concurrent jobs share the same
+// promise, and a failure is not retried for every job of that company (cost guard).
+const cardInFlight = new Map<string, Promise<CompanyCard | null>>();
+
+function getCompanyCard(db: SupabaseClient, company: string): Promise<CompanyCard | null> {
   const key = normalizeCompanyName(company);
+  let p = cardInFlight.get(key);
+  if (!p) {
+    p = loadOrResearchCard(db, company, key);
+    cardInFlight.set(key, p);
+  }
+  return p;
+}
+
+async function loadOrResearchCard(db: SupabaseClient, company: string, key: string): Promise<CompanyCard | null> {
   const { data } = await db.from("company_cards").select("*").eq("company_name", key).maybeSingle();
   if (data && new Date(data.expires_at) > new Date()) return data as CompanyCard;
   if (!process.env.ANTHROPIC_API_KEY) return (data as CompanyCard) ?? null;
@@ -126,7 +151,7 @@ async function getCommute(db: SupabaseClient, origin: string, location: string |
   return c;
 }
 
-export type ProcessResult = "filtered" | "scored" | "skipped";
+export type ProcessResult = "filtered" | "scored" | "skipped" | "too_old";
 
 /** Run filters + scoring for one stored job. */
 export async function processJob(
@@ -143,6 +168,10 @@ export async function processJob(
     await db.from("jobs").update({ filtered_out: reason }).eq("id", jobId);
     return "filtered";
   }
+
+  // Too old: not marked as filtered, so raising the limit in settings brings it back
+  // (it gets scored on the next scan). Saves AI cost on stale postings.
+  if (!opts.manual && isTooOld(raw.postedAt, ctx.prefs.max_job_age_days)) return "too_old";
 
   const commute = await getCommute(db, ctx.prefs.home_address, raw.location);
   const best = bestCommute(commute);

@@ -1,5 +1,6 @@
 // Per-request Supabase client for Server Components / Route Handlers / Server Actions (RLS applies).
 import { createServerClient } from "@supabase/ssr";
+import { io } from "next/cache";
 import { cookies } from "next/headers";
 
 export function supabaseConfigured(): boolean {
@@ -8,6 +9,9 @@ export function supabaseConfigured(): boolean {
 
 export async function supabaseServer() {
   const cookieStore = await cookies();
+  // supabase-js reads the clock (session expiry) — keep everything after this out of
+  // (runtime) prerenders, where cookies() alone is not a suspension point.
+  await io();
   return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll: () => cookieStore.getAll(),
