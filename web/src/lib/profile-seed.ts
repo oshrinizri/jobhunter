@@ -114,6 +114,12 @@ export const PROFILE_SEED: ProfileItem[] = [
     details: "SQL, Excel, SAS, Starburst, Teradata, Qlik",
     tags: ["SQL", "Excel", "SAS", "Starburst", "Teradata", "Qlik"],
   },
+  {
+    kind: "skill",
+    title: "Python (basic)",
+    details: "Basic / familiarity level Python — not production experience. Counts as partial coverage for jobs listing Python as a requirement.",
+    tags: ["Python"],
+  },
 ];
 
 /** Render the master profile as compact text for prompts. */
