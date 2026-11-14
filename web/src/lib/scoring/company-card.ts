@@ -23,7 +23,12 @@ const looseInt = z.preprocess((v) => {
 const looseStr = z.preprocess((v) => (v == null ? null : String(v)), z.string().nullable());
 
 const CardSchema = z.object({
-  tier: z.preprocess((v) => String(v ?? "").trim().toUpperCase().charAt(0), z.enum(["A", "B", "C"])),
+  // Unknown/unverifiable companies come back without a tier; "C" (risk) matches the spec's
+  // definition for small or unverified employers, and caching it avoids re-researching every scan.
+  tier: z.preprocess((v) => {
+    const t = String(v ?? "").trim().toUpperCase().charAt(0);
+    return ["A", "B", "C"].includes(t) ? t : "C";
+  }, z.enum(["A", "B", "C"])),
   is_public: looseBool,
   employees: looseInt,
   founded_year: looseInt,
