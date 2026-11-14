@@ -8,6 +8,11 @@ alter table public.preferences add column if not exists max_job_age_days int not
 alter table public.companies add column if not exists source text not null default 'manual'
   check (source in ('manual','seed','ai'));
 alter table public.companies add column if not exists suggest_reason text;
+alter table public.companies add column if not exists suggest_meta jsonb not null default '{}'; -- sector, city, quick tier, careers url
+-- 'rejected' = an AI suggestion the user declined (kept so it isn't suggested again).
+alter table public.companies drop constraint if exists companies_status_check;
+alter table public.companies add constraint companies_status_check
+  check (status in ('active','blacklist','suggested','paused','rejected'));
 
 -- Profile: a few more kinds of facts for the CV.
 alter table public.master_profile_items drop constraint if exists master_profile_items_kind_check;

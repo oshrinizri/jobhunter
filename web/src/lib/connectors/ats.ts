@@ -167,6 +167,78 @@ export async function fetchCompanyJobs(c: CompanyBoard): Promise<RawJob[]> {
   return jobs.filter((j) => isIsraelLocation(j.location));
 }
 
+export interface ResolvedBoard {
+  ats: "greenhouse" | "lever" | "comeet";
+  board: string;
+  token: string | null;
+  count: number; // all open jobs on the board (not only Israel)
+}
+
+/** Slug guesses from a company name and website, e.g. "Bank Leumi" + leumi.co.il → bankleumi, bank-leumi, leumi. */
+export function slugGuesses(name: string, website?: string | null): string[] {
+  const n = name.toLowerCase().trim();
+  const guesses = [n.replace(/[^a-z0-9]/g, ""), n.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")];
+  if (website) {
+    try {
+      const host = new URL(website.startsWith("http") ? website : `https://${website}`).hostname.replace(/^www\./, "");
+      guesses.push(host.split(".")[0]);
+    } catch {}
+  }
+  return [...new Set(guesses.filter((g) => g.length >= 2))];
+}
+
+/**
+ * Find a company's public job board: first by slug guesses on Greenhouse / Lever,
+ * then by reading its careers page for an embedded Greenhouse / Lever / Comeet board.
+ */
+export async function resolveBoard(opts: {
+  name: string;
+  website?: string | null;
+  careersUrl?: string | null;
+  fetchHtml?: (url: string) => Promise<string>;
+}): Promise<ResolvedBoard | null> {
+  for (const s of slugGuesses(opts.name, opts.website)) {
+    const b = await detectBoard(s);
+    if (b) return { ...b, token: null };
+  }
+  if (!opts.fetchHtml) return null;
+
+  for (const page of [opts.careersUrl, opts.website].filter(Boolean) as string[]) {
+    let html: string;
+    try {
+      html = await opts.fetchHtml(page.startsWith("http") ? page : `https://${page}`);
+    } catch {
+      continue;
+    }
+    const gh = html.match(/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/(?:embed\/job_board(?:\/js)?\?for=)?([\w-]+)/i)?.[1];
+    if (gh && gh !== "embed") {
+      const b = await detectBoard(gh);
+      if (b) return { ...b, token: null };
+    }
+    const lv = html.match(/jobs\.lever\.co\/([\w-]+)/i)?.[1];
+    if (lv) {
+      const b = await detectBoard(lv);
+      if (b) return { ...b, token: null };
+    }
+    let comeet = parseComeetConfig(html);
+    if (!comeet) {
+      const hosted = html.match(/https?:\/\/www\.comeet\.com\/jobs\/[\w-]+\/[0-9A-F]{2}\.[0-9A-F]{3}/i)?.[0];
+      if (hosted) {
+        try {
+          comeet = parseComeetConfig(await opts.fetchHtml(hosted));
+        } catch {}
+      }
+    }
+    if (comeet) {
+      try {
+        const jobs = await fetchComeet(comeet.uid, comeet.token, opts.name);
+        return { ats: "comeet", board: comeet.uid, token: comeet.token, count: jobs.length };
+      } catch {}
+    }
+  }
+  return null;
+}
+
 /** Try to auto-detect which public board a company uses, by slug guesses. */
 export async function detectBoard(slug: string): Promise<{ ats: "greenhouse" | "lever"; board: string; count: number } | null> {
   try {

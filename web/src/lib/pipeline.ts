@@ -114,15 +114,23 @@ function getCompanyCard(db: SupabaseClient, company: string): Promise<CompanyCar
   const key = normalizeCompanyName(company);
   let p = cardInFlight.get(key);
   if (!p) {
-    p = loadOrResearchCard(db, company, key);
+    p = loadOrResearchCard(db, company, key, false);
     cardInFlight.set(key, p);
   }
   return p;
 }
 
-async function loadOrResearchCard(db: SupabaseClient, company: string, key: string): Promise<CompanyCard | null> {
+/**
+ * Company rating card for the companies screen. `db` must be the service-role client
+ * (cards are a shared cache that signed-in users can only read). `force` re-researches.
+ */
+export function ensureCompanyCard(db: SupabaseClient, company: string, force = false): Promise<CompanyCard | null> {
+  return loadOrResearchCard(db, company, normalizeCompanyName(company), force);
+}
+
+async function loadOrResearchCard(db: SupabaseClient, company: string, key: string, force: boolean): Promise<CompanyCard | null> {
   const { data } = await db.from("company_cards").select("*").eq("company_name", key).maybeSingle();
-  if (data && new Date(data.expires_at) > new Date()) return data as CompanyCard;
+  if (!force && data && new Date(data.expires_at) > new Date()) return data as CompanyCard;
   if (!process.env.ANTHROPIC_API_KEY) return (data as CompanyCard) ?? null;
   try {
     const card = await researchCompany(company);
@@ -136,6 +144,11 @@ async function loadOrResearchCard(db: SupabaseClient, company: string, key: stri
     console.warn(`company card failed for ${company}:`, (e as Error).message);
     return (data as CompanyCard) ?? null;
   }
+}
+
+/** Commute from home to a job/company location, cached. Writes the cache only with the service-role client. */
+export function commuteFor(db: SupabaseClient, origin: string, location: string | null): Promise<Commute> {
+  return getCommute(db, origin, location);
 }
 
 async function getCommute(db: SupabaseClient, origin: string, location: string | null): Promise<Commute> {

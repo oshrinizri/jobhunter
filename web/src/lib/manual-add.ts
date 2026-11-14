@@ -6,8 +6,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ai, MODEL_SCORING } from "./ai";
 import { detectRemote, extractEmail, htmlToText } from "./text";
 import type { RawJob } from "./types";
-
-const UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+import { fetchPublicHtml } from "./net";
 
 const Extracted = z.object({
   is_job_posting: z.boolean(),
@@ -51,14 +50,7 @@ async function fromLever(url: string): Promise<RawJob | null> {
 }
 
 async function fetchPageText(url: string): Promise<string> {
-  const u = new URL(url);
-  // Only public web pages — never internal addresses.
-  if (!/^https?:$/.test(u.protocol) || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|\[?::1|0\.)/i.test(u.hostname)) {
-    throw new Error("כתובת לא נתמכת");
-  }
-  const res = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "he,en" }, signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) throw new Error(`הדף לא נטען (${res.status})`);
-  const html = await res.text();
+  const html = await fetchPublicHtml(url);
   // Prefer structured JobPosting data when the page has it.
   const ld = [...html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).join("\n");
   const body = htmlToText(html.replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, ""));
