@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusPicker } from "@/components/status-picker";
 import { QuickFeedback } from "@/components/quick-feedback";
-import { Card, FILTER_LABELS, ScoreBadge, TAG_LABELS, Tag, commuteText, timeAgo } from "@/components/ui";
+import { Card, FILTER_LABELS, ScoreBadge, TAG_LABELS, Tag, commuteText, postedText } from "@/components/ui";
 import { supabaseServer } from "@/lib/supabase/server";
+import { normalizeCompanyName } from "@/lib/text";
 import type { ApplicationStatus } from "@/lib/types";
 
 const PARAM_LABELS: Record<string, string> = {
@@ -33,7 +34,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   if (!job) notFound();
 
   const [{ data: card }, { data: app }, { data: sources }] = await Promise.all([
-    db.from("company_cards").select("*").eq("company_name", job.company.trim().toLowerCase()).maybeSingle(),
+    db.from("company_cards").select("*").eq("company_name", normalizeCompanyName(job.company)).maybeSingle(),
     db.from("applications").select("*").eq("job_id", id).maybeSingle(),
     db.from("job_sources").select("source,url").eq("job_id", id),
   ]);
@@ -53,7 +54,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             <span className="ltr">{job.company}</span>
             {job.location ? ` · ${job.location}` : ""}
           </p>
-          <p className="text-sm text-muted">{[commute, timeAgo(job.posted_at ?? job.first_seen_at)].filter(Boolean).join(" · ")}</p>
+          <p className="text-sm text-muted">{[postedText(job.posted_at, job.first_seen_at), commute].filter(Boolean).join(" · ")}</p>
         </div>
       </header>
 
@@ -79,6 +80,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           <div className="ms-auto"><QuickFeedback jobId={id} /></div>
         </div>
         <StatusPicker jobId={id} status={(app?.status as ApplicationStatus) ?? null} />
+        <Link href={`/jobs/${id}/cv`} className="block rounded-xl border border-accent bg-accent-soft py-2 text-center text-sm font-semibold text-accent">
+          📄 קורות חיים ומכתב מקדים מותאמים למשרה
+        </Link>
       </Card>
 
       {/* Why this score */}

@@ -77,6 +77,50 @@ export async function generateBaseCv(items: ProfileItem[], lang: "he" | "en", ta
 }
 
 // ---------------------------------------------------------------------------
+// Per-job tailoring (SPEC §8.2–8.3)
+// ---------------------------------------------------------------------------
+
+const Tailored = z.object({
+  cv: CvBody,
+  cover_letter: z.string().describe("3–5 lines for the email body, in the CV language, first person, no clichés"),
+  changes_he: z.array(z.string()).describe("What was changed vs. a general CV and why — short Hebrew lines"),
+  gaps_he: z.array(z.string()).describe("Requirements of the job the profile does not cover — short Hebrew lines, honest"),
+});
+export type Tailored = z.infer<typeof Tailored>;
+
+export interface TailoredDoc extends CvDoc {
+  changes_he: string[];
+  gaps_he: string[];
+}
+
+/** CV tailored to one job: same facts, re-selected and re-ordered for the posting, plus a short cover letter. */
+export async function generateTailoredCv(
+  items: ProfileItem[],
+  job: { title: string; company: string; description: string },
+  lang: "he" | "en",
+): Promise<Tailored> {
+  const res = await ai().messages.parse({
+    model: MODEL_WRITING,
+    max_tokens: 14000,
+    output_config: { effort: "medium", format: zodOutputFormat(Tailored) },
+    system: `You tailor an honest CV to a specific job posting for the Israeli market.
+${CV_RULES}
+Tailoring: lead with the most relevant experience and skills for THIS job; mirror the posting's terminology only where it is
+true for the candidate (helps ATS); drop what is irrelevant; rewrite the headline and summary for this role.
+List anything the job requires that the profile lacks in gaps_he — never paper over gaps in the CV.
+Write the CV and cover letter in ${lang === "he" ? "Hebrew (keep tool and technology names in English)" : "English"}.`,
+    messages: [
+      {
+        role: "user",
+        content: `# Job\nTitle: ${job.title}\nCompany: ${job.company}\n\n${job.description.slice(0, 12000)}\n\n# Master profile\n\n${profileForPrompt(items)}`,
+      },
+    ],
+  });
+  if (!res.parsed_output) throw new Error(`tailoring failed (${res.stop_reason})`);
+  return res.parsed_output;
+}
+
+// ---------------------------------------------------------------------------
 // Enrichment interview
 // ---------------------------------------------------------------------------
 
