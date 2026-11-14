@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveSettings, type SettingsState } from "./actions";
 import { Card } from "@/components/ui";
+import { ROLE_TRACKS } from "@/lib/scoring/filters";
 import type { Preferences, Weights } from "@/lib/types";
 
 const WEIGHT_LABELS: Record<keyof Weights, string> = {
@@ -15,7 +16,7 @@ const WEIGHT_LABELS: Record<keyof Weights, string> = {
   hebrew: "סביבה עברית",
 };
 
-const TRACKS = ["Data Analyst", "BI Developer", "Data Engineer", "Product Analyst"];
+const TRACKS = ROLE_TRACKS;
 
 const input = "w-full rounded-xl border border-border bg-surface px-3 py-2";
 
