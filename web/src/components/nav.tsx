@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/tracking", label: "מעקב", icon: "M5 4h4v16H5zM10 4h4v10h-4zM15 4h4v6h-4z" },
   { href: "/add", label: "הוספה", icon: "M12 5v14M5 12h14" },
   { href: "/companies", label: "חברות", icon: "M4 20V8l8-4 8 4v12M9 20v-6h6v6" },
+  { href: "/profile", label: "פרופיל", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" },
   { href: "/settings", label: "הגדרות", icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM3 12h2M19 12h2M12 3v2M12 19v2" },
 ];
 
@@ -16,7 +17,8 @@ const HIDDEN_ON = ["/login", "/setup", "/auth"];
 export function Nav() {
   const path = usePathname();
   if (HIDDEN_ON.some((p) => path.startsWith(p))) return null;
-  const active = (href: string) => (href === "/" ? path === "/" || path.startsWith("/jobs") : path.startsWith(href));
+  const active = (href: string) =>
+    href === "/" ? path === "/" || path.startsWith("/jobs") : path.startsWith(href) || (href === "/profile" && path.startsWith("/cv"));
 
   return (
     <>
@@ -40,7 +42,7 @@ export function Nav() {
 
       {/* Mobile: bottom tab bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-surface/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-border bg-surface/95 backdrop-blur md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {ITEMS.map((i) => (

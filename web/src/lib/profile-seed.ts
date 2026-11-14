@@ -1,8 +1,38 @@
 // Initial master profile, taken from Oshri_Nizri_CV.pdf plus facts confirmed in the spec interview.
 // Seeded into master_profile_items on first run; edited later from the Profile screen.
 
+export const PROFILE_KINDS = [
+  "summary",
+  "role",
+  "project",
+  "achievement",
+  "education",
+  "course",
+  "certification",
+  "skill",
+  "language",
+  "military",
+  "volunteer",
+] as const;
+export type ProfileKind = (typeof PROFILE_KINDS)[number];
+
+export const KIND_LABELS: Record<ProfileKind, string> = {
+  summary: "תקציר",
+  role: "ניסיון תעסוקתי",
+  project: "פרויקטים",
+  achievement: "הישגים",
+  education: "השכלה",
+  course: "קורסים",
+  certification: "הסמכות",
+  skill: "כישורים",
+  language: "שפות",
+  military: "שירות צבאי",
+  volunteer: "התנדבות",
+};
+
 export interface ProfileItem {
-  kind: "role" | "project" | "skill" | "achievement" | "education" | "course" | "summary";
+  id?: string;
+  kind: ProfileKind;
   title: string;
   org?: string;
   start_date?: string;

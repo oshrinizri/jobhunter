@@ -76,3 +76,41 @@ body {
   direction: ltr;
   unicode-bidi: isolate;
 }
+
+/* CV page: A4 width on screen, clean pages when printed / saved as PDF */
+.cv-page {
+  width: 210mm;
+  min-height: 297mm;
+  max-width: 100%;
+}
+
+@page {
+  size: A4;
+  margin: 14mm 14mm;
+}
+
+@media print {
+  body {
+    background: #fff;
+    padding: 0;
+  }
+  header,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .cv-page {
+    width: auto;
+    min-height: 0;
+  }
+  .cv-section h2 {
+    break-after: avoid;
+  }
+  .cv-avoid-break {
+    break-inside: avoid;
+  }
+}
