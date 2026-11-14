@@ -117,8 +117,8 @@ export const PROFILE_SEED: ProfileItem[] = [
   {
     kind: "skill",
     title: "Python (basic)",
-    details: "Basic / familiarity level Python — not production experience. Counts as partial coverage for jobs listing Python as a requirement.",
-    tags: ["Python"],
+    details: "Learned Python years ago; recently uses it again with AI assistance (AI-assisted scripting/analysis). Familiarity level, not production experience. Counts as partial coverage for jobs listing Python as a requirement.",
+    tags: ["Python", "AI-assisted coding"],
   },
 ];
 
