@@ -4,9 +4,11 @@
 import { config } from "dotenv";
 config({ path: ".env.local" });
 import { fetchCompanyJobs } from "../src/lib/connectors/ats";
+import { fetchAllJobs, fetchDrushim, searchTermsFor } from "../src/lib/connectors/boards";
+import { fetchLinkedInAlerts } from "../src/lib/connectors/linkedin-email";
 import { loadUserContext, processJob, upsertJob } from "../src/lib/pipeline";
 import { supabaseAdmin } from "../src/lib/supabase/admin";
-import { ageCutoffIso } from "../src/lib/types";
+import { ageCutoffIso, type RawJob } from "../src/lib/types";
 
 // Cost guard: at most this many AI scorings per run (SPEC §17 risk #7).
 const MAX_SCORE_PER_RUN = Number(process.env.MAX_SCORE_PER_RUN ?? 150);
@@ -27,7 +29,7 @@ async function main() {
       .in("ats", ["greenhouse", "lever", "comeet"]);
 
     let fetched = 0, added = 0, scored = 0, filtered = 0, skipped = 0, old = 0;
-    const toProcess: { id: string; raw: Awaited<ReturnType<typeof fetchCompanyJobs>>[number] }[] = [];
+    const toProcess: { id: string; raw: RawJob }[] = [];
 
     for (const c of companies ?? []) {
       try {
@@ -49,6 +51,56 @@ async function main() {
         await db.from("companies").update({ last_fetch_error: msg.slice(0, 500) }).eq("id", c.id);
       }
     }
+
+    // Job boards (Drushim, AllJobs) by search terms for the user's role tracks.
+    const ingestRaw = async (jobs: RawJob[]) => {
+      fetched += jobs.length;
+      for (const raw of jobs) {
+        const { id, isNew } = await upsertJob(db, userId, raw);
+        if (isNew) {
+          added++;
+          toProcess.push({ id, raw });
+        }
+      }
+    };
+    const { data: knownRows } = await db.from("job_sources").select("source,external_id").in("source", ["drushim"]);
+    const known = new Set((knownRows ?? []).map((r) => `${r.source}:${r.external_id}`));
+    const boardCounts: Record<string, number> = {};
+    for (const term of searchTermsFor(ctx.prefs.role_tracks)) {
+      for (const [name, fetchBoard] of [
+        ["drushim", () => fetchDrushim(term, { known })],
+        ["alljobs", () => fetchAllJobs(term)],
+      ] as const) {
+        try {
+          const jobs = await fetchBoard();
+          boardCounts[name] = (boardCounts[name] ?? 0) + jobs.length;
+          await ingestRaw(jobs);
+        } catch (e) {
+          console.warn(`✗ ${name} "${term}": ${(e as Error).message}`);
+        }
+        await new Promise((r) => setTimeout(r, 1500)); // be gentle with the sites
+      }
+    }
+
+    // LinkedIn alert emails (only for the account that set a Gmail App Password).
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      try {
+        const jobs = await fetchLinkedInAlerts({ user: process.env.GMAIL_USER, appPassword: process.env.GMAIL_APP_PASSWORD, days: 3 });
+        boardCounts.linkedin = jobs.length;
+        await ingestRaw(jobs);
+      } catch (e) {
+        console.warn(`✗ LinkedIn alerts (Gmail): ${(e as Error).message}`);
+      }
+    }
+    console.log(`boards: ${JSON.stringify(boardCounts)}`);
+
+    // Jobs not seen anywhere for 3 weeks are treated as closed (boards and alerts don't tell us).
+    await db
+      .from("jobs")
+      .update({ is_open: false })
+      .eq("user_id", userId)
+      .eq("is_open", true)
+      .lt("last_seen_at", new Date(Date.now() - 21 * 86400_000).toISOString());
 
     // Also retry jobs stored earlier but never scored (API key was missing, budget hit,
     // or the age limit was raised since) — only those inside the current age limit.

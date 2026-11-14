@@ -19,6 +19,9 @@ import {
 } from "./types";
 import { MODEL_SCORING } from "./ai";
 
+/** Description prefix for jobs known only from a LinkedIn alert email (see connectors/linkedin-email.ts). */
+export const LINKEDIN_PLACEHOLDER = "(מתוך התראת LinkedIn";
+
 /** Always excluded, regardless of the companies table (SPEC §12–13). */
 export const FIXED_BLACKLIST = ["bank hapoalim", "בנק הפועלים", "hapoalim", "g-stat", "gstat", "ג'י-סטאט", "גי סטאט"];
 
@@ -61,7 +64,7 @@ export async function upsertJob(db: SupabaseClient, userId: string, raw: RawJob)
 
   const { data: existing } = await db
     .from("jobs")
-    .select("id")
+    .select("id,description")
     .eq("user_id", userId)
     .eq("fingerprint", fingerprint)
     .maybeSingle();
@@ -70,7 +73,16 @@ export async function upsertJob(db: SupabaseClient, userId: string, raw: RawJob)
   let isNew = false;
   if (existing) {
     id = existing.id;
-    await db.from("jobs").update({ last_seen_at: now, is_open: true }).eq("id", id);
+    // A job first seen in a LinkedIn alert has no real description; take it from a board and re-score.
+    const upgrade = existing.description?.startsWith(LINKEDIN_PLACEHOLDER) && raw.source !== "linkedin_email" && raw.description.length > 200;
+    await db
+      .from("jobs")
+      .update({ last_seen_at: now, is_open: true, ...(upgrade ? { description: raw.description, apply_email: raw.applyEmail } : {}) })
+      .eq("id", id);
+    if (upgrade) {
+      await db.from("job_scores").delete().eq("job_id", id);
+      isNew = true; // process again with the full text
+    }
   } else {
     const { data, error } = await db
       .from("jobs")
@@ -118,6 +130,14 @@ function getCompanyCard(db: SupabaseClient, company: string): Promise<CompanyCar
     cardInFlight.set(key, p);
   }
   return p;
+}
+
+/** Only research a new company card when the job scores at least this with neutral stability. */
+const CARD_RESEARCH_MIN_TOTAL = 50;
+
+async function cachedCard(db: SupabaseClient, company: string): Promise<CompanyCard | null> {
+  const { data } = await db.from("company_cards").select("*").eq("company_name", normalizeCompanyName(company)).maybeSingle();
+  return data && new Date(data.expires_at) > new Date() ? (data as CompanyCard) : null;
 }
 
 /**
@@ -196,13 +216,22 @@ export async function processJob(
 
   if (!process.env.ANTHROPIC_API_KEY) return "skipped";
 
-  const card = raw.companyHidden ? null : await getCompanyCard(db, raw.company);
+  // Cheap assessment first; the company card (web research, the costly part) only for jobs that could
+  // plausibly make the recommended list, or whose company already has a cached card.
   const assessment = await assessJob(raw, ctx.profileText, ctx.prefs);
   const override = ctx.tierOverrides.get(normalizeCompanyName(raw.company)) ?? null;
-  const employment = card?.is_staffing && assessment.employment === "direct" ? "contractor" : assessment.employment;
-  const stability = stabilityScore(card, override, employment);
-  const breakdown = buildBreakdown(assessment, commuteScore(commute, raw.remote, ctx.prefs.max_commute_min), stability, ctx.prefs.target_salary);
-  const total = combine(breakdown, ctx.prefs.weights);
+  const commuteSub = commuteScore(commute, raw.remote, ctx.prefs.max_commute_min);
+  const scoreWith = (card: CompanyCard | null) => {
+    const employment = card?.is_staffing && assessment.employment === "direct" ? "contractor" : assessment.employment;
+    const breakdown = buildBreakdown(assessment, commuteSub, stabilityScore(card, override, employment), ctx.prefs.target_salary);
+    return { employment, breakdown, total: combine(breakdown, ctx.prefs.weights) };
+  };
+  let card: CompanyCard | null = null;
+  if (!raw.companyHidden) {
+    const cached = await cachedCard(db, raw.company);
+    card = cached ?? (opts.manual || scoreWith(null).total >= CARD_RESEARCH_MIN_TOTAL ? await getCompanyCard(db, raw.company) : null);
+  }
+  const { employment, breakdown, total } = scoreWith(card);
 
   const { count: sourceCount } = await db.from("job_sources").select("id", { count: "exact", head: true }).eq("job_id", jobId);
 
