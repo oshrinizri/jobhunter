@@ -60,9 +60,40 @@ export interface Preferences {
   preference_notes: string;
   /** Jobs posted longer ago than this are hidden and not scored (manual adds excepted). */
   max_job_age_days: number;
+  /** Automatic scans: on/off, Israel-time hours (from SCAN_SLOTS) and days of week (0 = Sunday). */
+  scan_enabled: boolean;
+  scan_hours: number[];
+  scan_days: number[];
+  /** Research new companies automatically during scans (the costly AI step). */
+  auto_company_research: boolean;
 }
 
 export const DEFAULT_MAX_JOB_AGE_DAYS = 30;
+
+/** Hours (Israel time) at which the scheduler wakes up — must match .github/workflows/ingest.yml. */
+export const SCAN_SLOTS = [7, 12, 17, 21] as const;
+
+export const SCAN_DEFAULTS = {
+  scan_enabled: true,
+  scan_hours: [7, 17],
+  scan_days: [0, 1, 2, 3, 4],
+  auto_company_research: true,
+};
+
+/** The scan slot and weekday "now" in Israel, snapping to the nearest slot (the scheduler can run a bit early or late). */
+export function currentScanSlot(now = new Date()): { slot: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Jerusalem",
+    hour: "numeric",
+    minute: "numeric",
+    weekday: "short",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0) + Number(parts.find((p) => p.type === "minute")?.value ?? 0) / 60;
+  const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((p) => p.type === "weekday")?.value ?? "Sun");
+  const slot = [...SCAN_SLOTS].sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour))[0];
+  return { slot, day };
+}
 
 /** True when a posting date is older than the user's age limit. Unknown dates pass. */
 export function isTooOld(postedAt: string | null | undefined, maxDays: number | null | undefined): boolean {

@@ -11,6 +11,7 @@ import { jobFingerprint, normalizeCompanyName, detectLanguage } from "./text";
 import {
   DEFAULT_MAX_JOB_AGE_DAYS,
   DEFAULT_WEIGHTS,
+  SCAN_DEFAULTS,
   isTooOld,
   type CompanyCard,
   type Commute,
@@ -42,6 +43,7 @@ export async function loadUserContext(db: SupabaseClient, userId: string): Promi
   if (prefErr || !prefRow) throw new Error(`no preferences for user ${userId}: ${prefErr?.message}`);
 
   const prefs: Preferences = {
+    ...SCAN_DEFAULTS,
     ...prefRow,
     weights: { ...DEFAULT_WEIGHTS, ...prefRow.weights },
     max_job_age_days: prefRow.max_job_age_days ?? DEFAULT_MAX_JOB_AGE_DAYS,
@@ -229,7 +231,8 @@ export async function processJob(
   let card: CompanyCard | null = null;
   if (!raw.companyHidden) {
     const cached = await cachedCard(db, raw.company);
-    card = cached ?? (opts.manual || scoreWith(null).total >= CARD_RESEARCH_MIN_TOTAL ? await getCompanyCard(db, raw.company) : null);
+    const research = opts.manual || (ctx.prefs.auto_company_research && scoreWith(null).total >= CARD_RESEARCH_MIN_TOTAL);
+    card = cached ?? (research ? await getCompanyCard(db, raw.company) : null);
   }
   const { employment, breakdown, total } = scoreWith(card);
 

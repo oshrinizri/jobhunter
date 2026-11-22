@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { saveSettings, type SettingsState } from "./actions";
 import { Card } from "@/components/ui";
 import { ROLE_TRACKS } from "@/lib/scoring/filters";
-import type { Preferences, Weights } from "@/lib/types";
+import { SCAN_SLOTS, type Preferences, type Weights } from "@/lib/types";
 
 const WEIGHT_LABELS: Record<keyof Weights, string> = {
   skills: "התאמת כישורים",
@@ -21,6 +21,77 @@ const TRACKS = ROLE_TRACKS;
 const input = "w-full rounded-xl border border-border bg-surface px-3 py-2";
 
 const AGE_OPTIONS = [7, 14, 21, 30, 45, 60, 90];
+
+const SLOT_LABELS: Record<number, string> = { 7: "07:00 בוקר", 12: "12:00 צהריים", 17: "17:00 אחה״צ", 21: "21:00 ערב" };
+const DAY_LABELS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+
+const chip = "flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent";
+
+function ScanSettings({ prefs }: { prefs: Preferences }) {
+  const [enabled, setEnabled] = useState(prefs.scan_enabled);
+  const [hours, setHours] = useState<number[]>(prefs.scan_hours);
+  const [days, setDays] = useState<number[]>(prefs.scan_days);
+  const toggle = (list: number[], v: number) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const perWeek = enabled ? hours.length * days.length : 0;
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold">סריקה אוטומטית</h2>
+        <label className="flex items-center gap-2 text-sm">
+          <span className={enabled ? "text-good" : "text-muted"}>{enabled ? "פעילה" : "מושהית"}</span>
+          <input
+            type="checkbox"
+            name="scan_enabled"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            className="h-5 w-5 accent-[var(--accent)]"
+          />
+        </label>
+      </div>
+
+      <fieldset disabled={!enabled} className="space-y-3 disabled:opacity-50">
+        <div className="space-y-1.5">
+          <p className="text-sm text-muted">שעות סריקה</p>
+          <div className="flex flex-wrap gap-2">
+            {SCAN_SLOTS.map((h) => (
+              <label key={h} className={chip}>
+                <input type="checkbox" name="scan_hours" value={h} checked={hours.includes(h)} onChange={() => setHours(toggle(hours, h))} className="sr-only" />
+                {SLOT_LABELS[h]}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-sm text-muted">ימים</p>
+          <div className="flex flex-wrap gap-2">
+            {DAY_LABELS.map((d, i) => (
+              <label key={i} className={chip}>
+                <input type="checkbox" name="scan_days" value={i} checked={days.includes(i)} onChange={() => setDays(toggle(days, i))} className="sr-only" />
+                {d}
+              </label>
+            ))}
+          </div>
+        </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="auto_company_research" defaultChecked={prefs.auto_company_research} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
+          <span>
+            חקירת חברות חדשות אוטומטית
+            <span className="block text-xs text-muted">
+              ה-AI מחפש ברשת מידע על יציבות החברה. זה החלק היקר בסריקה. כשהאפשרות כבויה, חברה חדשה מקבלת ציון יציבות ניטרלי, ואפשר לדרג אותה ידנית במסך החברות.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
+      <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">
+        {perWeek === 0
+          ? "הסריקות מושהות: אין עלות AI. כל מה שכבר נאסף נשמר, ומסד הנתונים נשאר ער."
+          : `${perWeek} סריקות בשבוע. העלות תלויה בכמות המשרות החדשות ולא במספר הסריקות. סריקות תכופות רק מוצאות אותן מוקדם יותר. החיסכון הגדול הוא בכיבוי חקירת החברות.`}
+      </p>
+    </Card>
+  );
+}
 
 export function SettingsForm({ prefs }: { prefs: Preferences }) {
   const [state, action, pending] = useActionState<SettingsState, FormData>(saveSettings, null);
@@ -46,6 +117,8 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
           </label>
         </div>
       </Card>
+
+      <ScanSettings prefs={prefs} />
 
       <Card className="space-y-2">
         <h2 className="font-semibold">טריות משרות</h2>

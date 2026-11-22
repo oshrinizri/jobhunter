@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { combine, type Breakdown } from "@/lib/scoring/score";
 import { supabaseServer } from "@/lib/supabase/server";
-import { DEFAULT_WEIGHTS, type Weights } from "@/lib/types";
+import { DEFAULT_WEIGHTS, SCAN_SLOTS, type Weights } from "@/lib/types";
 
 export type SettingsState = { ok?: string; error?: string } | null;
 
@@ -12,6 +12,20 @@ const list = (v: FormDataEntryValue | null) =>
     .split(/[,\n]/)
     .map((s) => s.trim())
     .filter(Boolean);
+
+/** Automatic-scan settings. A disabled fieldset submits nothing, so when scans are off keep the old hours/days. */
+function scanFields(form: FormData) {
+  const enabled = form.get("scan_enabled") === "on";
+  if (!enabled) return { scan_enabled: false };
+  const hours = form.getAll("scan_hours").map(Number).filter((h) => (SCAN_SLOTS as readonly number[]).includes(h));
+  const days = form.getAll("scan_days").map(Number).filter((d) => d >= 0 && d <= 6);
+  return {
+    scan_enabled: hours.length > 0 && days.length > 0,
+    scan_hours: hours,
+    scan_days: days,
+    auto_company_research: form.get("auto_company_research") === "on",
+  };
+}
 
 export async function saveSettings(_prev: SettingsState, form: FormData): Promise<SettingsState> {
   const db = await supabaseServer();
@@ -36,6 +50,7 @@ export async function saveSettings(_prev: SettingsState, form: FormData): Promis
       negative_keywords: list(form.get("negative_keywords")),
       preference_notes: String(form.get("preference_notes") ?? ""),
       max_job_age_days: Math.max(1, Math.min(365, Number(form.get("max_job_age_days") ?? 30) || 30)),
+      ...scanFields(form),
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", user.id);

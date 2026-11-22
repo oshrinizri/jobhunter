@@ -5,7 +5,7 @@ import { FIXED_BLACKLIST } from "../src/lib/pipeline";
 import { commuteScore } from "../src/lib/scoring/commute";
 import { hardFilter } from "../src/lib/scoring/filters";
 import { combine } from "../src/lib/scoring/score";
-import { DEFAULT_WEIGHTS, type Preferences } from "../src/lib/types";
+import { DEFAULT_WEIGHTS, SCAN_DEFAULTS, type Preferences } from "../src/lib/types";
 
 const prefs: Preferences = {
   home_address: "קריית אונו",
@@ -17,6 +17,7 @@ const prefs: Preferences = {
   negative_keywords: ["sales", "account executive", "student", "סטודנט"],
   preference_notes: "",
   max_job_age_days: 30,
+  ...SCAN_DEFAULTS,
 };
 
 async function main() {

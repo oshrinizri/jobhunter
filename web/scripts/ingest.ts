@@ -8,7 +8,7 @@ import { fetchAllJobs, fetchDrushim, searchTermsFor } from "../src/lib/connector
 import { fetchLinkedInAlerts } from "../src/lib/connectors/linkedin-email";
 import { loadUserContext, processJob, upsertJob } from "../src/lib/pipeline";
 import { supabaseAdmin } from "../src/lib/supabase/admin";
-import { ageCutoffIso, type RawJob } from "../src/lib/types";
+import { ageCutoffIso, currentScanSlot, type RawJob } from "../src/lib/types";
 
 // Cost guard: at most this many AI scorings per run (SPEC §17 risk #7).
 const MAX_SCORE_PER_RUN = Number(process.env.MAX_SCORE_PER_RUN ?? 150);
@@ -19,8 +19,27 @@ async function main() {
   const { data: users, error } = await db.from("preferences").select("user_id");
   if (error) throw error;
 
+  // Scheduled runs wake up at every slot; each user's settings decide whether this slot scans.
+  // A manual run (FORCE_SCAN=1, e.g. "Run workflow" on GitHub) always scans.
+  const force = process.env.FORCE_SCAN === "1" || process.env.FORCE_SCAN === "true";
+  const { slot, day } = currentScanSlot();
+
   for (const { user_id: userId } of users ?? []) {
     const ctx = await loadUserContext(db, userId);
+    if (!force) {
+      const p = ctx.prefs;
+      const why = !p.scan_enabled
+        ? "automatic scans are off"
+        : !p.scan_days.includes(day)
+          ? `day ${day} not selected`
+          : !p.scan_hours.includes(slot)
+            ? `${slot}:00 not selected`
+            : null;
+      if (why) {
+        console.log(`user ${userId.slice(0, 8)}: skipped (${why})`);
+        continue;
+      }
+    }
     const { data: companies } = await db
       .from("companies")
       .select("*")

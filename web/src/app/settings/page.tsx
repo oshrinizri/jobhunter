@@ -1,6 +1,6 @@
 import { SettingsForm } from "./form";
 import { supabaseServer } from "@/lib/supabase/server";
-import { DEFAULT_MAX_JOB_AGE_DAYS, DEFAULT_WEIGHTS } from "@/lib/types";
+import { DEFAULT_MAX_JOB_AGE_DAYS, DEFAULT_WEIGHTS, SCAN_DEFAULTS } from "@/lib/types";
 
 export default async function SettingsPage() {
   const db = await supabaseServer();
@@ -16,6 +16,7 @@ export default async function SettingsPage() {
       <h1 className="text-xl font-bold">הגדרות</h1>
       <SettingsForm
         prefs={{
+          ...SCAN_DEFAULTS,
           ...prefs,
           weights: { ...DEFAULT_WEIGHTS, ...prefs.weights },
           max_job_age_days: prefs.max_job_age_days ?? DEFAULT_MAX_JOB_AGE_DAYS,
